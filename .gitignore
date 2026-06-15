@@ -1,0 +1,42 @@
+# Binaries & Executables
+bin/
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test artifacts & coverage
+*.out
+coverage.html
+profile.pprof
+
+# IDE and Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS generated
+.DS_Store
+Thumbs.db
+
+# Agent internals & system logs
+.agents/
+.gemini/
+
+# Node & Frontend dependencies/build
+web/node_modules/
+web/.pnpm-store/
+web/dist/
+
+# Python / Local scratch
+.python-version
+main.py
+pyproject.toml
+uv.lock
+
+# Environment secrets
+.env
+.env.local
