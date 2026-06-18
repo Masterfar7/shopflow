@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/inventory/stock-released.v1.json",
+  "title": "StockReleasedPayloadV1",
+  "type": "object",
+  "required": [
+    "reservation_id",
+    "order_id",
+    "items",
+    "reason",
+    "released_at"
+  ],
+  "properties": {
+    "reservation_id": { "type": "string", "format": "uuid" },
+    "order_id": { "type": "string", "format": "uuid" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sku", "quantity"],
+        "properties": {
+          "sku": { "type": "string" },
+          "quantity": { "type": "integer", "minimum": 1 }
+        }
+      }
+    },
+    "reason": { "type": "string" },
+    "released_at": { "type": "string", "format": "date-time" }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/payments/payment-refunded.v1.json",
+  "title": "PaymentRefundedPayloadV1",
+  "type": "object",
+  "required": [
+    "refund_id",
+    "payment_id",
+    "order_id",
+    "amount_minor",
+    "currency",
+    "refund_reference",
+    "reason",
+    "refunded_at"
+  ],
+  "properties": {
+    "refund_id": { "type": "string", "format": "uuid" },
+    "payment_id": { "type": "string", "format": "uuid" },
+    "order_id": { "type": "string", "format": "uuid" },
+    "amount_minor": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "refund_reference": { "type": "string" },
+    "reason": { "type": "string" },
+    "refunded_at": { "type": "string", "format": "date-time" }
+  }
+}

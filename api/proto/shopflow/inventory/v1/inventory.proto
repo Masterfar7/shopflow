@@ -1,0 +1,77 @@
+syntax = "proto3";
+
+package shopflow.inventory.v1;
+
+import "google/protobuf/timestamp.proto";
+import "shopflow/common/v1/money.proto";
+
+option go_package = "github.com/shopflow/proto/shopflow/inventory/v1;inventoryv1";
+
+message StockItemRequest {
+  string sku = 1;
+  int32 quantity = 2;
+}
+
+message ReserveStockRequest {
+  string reservation_id = 1;
+  string order_id = 2;
+  repeated StockItemRequest items = 3;
+  int32 ttl_seconds = 4;
+}
+
+enum ReservationStatus {
+  RESERVATION_STATUS_UNSPECIFIED = 0;
+  RESERVATION_STATUS_RESERVED = 1;
+  RESERVATION_STATUS_FAILED_INSUFFICIENT_STOCK = 2;
+  RESERVATION_STATUS_FAILED_CONCURRENCY = 3;
+}
+
+message ReserveStockResponse {
+  string reservation_id = 1;
+  ReservationStatus status = 2;
+  repeated string failed_skus = 3;
+  google.protobuf.Timestamp expires_at = 4;
+}
+
+message CommitStockRequest {
+  string reservation_id = 1;
+  string order_id = 2;
+}
+
+message CommitStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ReleaseStockRequest {
+  string reservation_id = 1;
+  string order_id = 2;
+  string reason = 3;
+}
+
+message ReleaseStockResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message GetStockRequest {
+  string sku = 1;
+}
+
+message GetStockResponse {
+  string sku = 1;
+  int32 on_hand = 2;
+  int32 reserved = 3;
+  int32 available = 4;
+  int64 version = 5;
+}
+
+// InventoryService coordinates atomic stock reservation, commits, and releases.
+// Algorithm: Acquires locks in ascending lexicographical order (ORDER BY sku ASC FOR UPDATE)
+// to guarantee zero deadlocks under high concurrency.
+service InventoryService {
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+  rpc CommitStock(CommitStockRequest) returns (CommitStockResponse);
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReleaseStockResponse);
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+}

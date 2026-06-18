@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/orders/order-cancelled.v1.json",
+  "title": "OrderCancelledPayloadV1",
+  "type": "object",
+  "required": [
+    "order_id",
+    "customer_id",
+    "customer_email",
+    "total_amount_minor",
+    "currency",
+    "reason",
+    "cancelled_at"
+  ],
+  "properties": {
+    "order_id": { "type": "string", "format": "uuid" },
+    "customer_id": { "type": "string" },
+    "customer_email": { "type": "string", "format": "email" },
+    "total_amount_minor": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "reason": { "type": "string" },
+    "line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["sku", "title", "unit_price_minor", "quantity", "subtotal_minor"],
+        "properties": {
+          "sku": { "type": "string" },
+          "title": { "type": "string" },
+          "unit_price_minor": { "type": "integer", "minimum": 0 },
+          "quantity": { "type": "integer", "minimum": 1 },
+          "subtotal_minor": { "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "cancelled_at": { "type": "string", "format": "date-time" }
+  }
+}

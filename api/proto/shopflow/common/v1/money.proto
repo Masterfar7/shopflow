@@ -1,0 +1,14 @@
+syntax = "proto3";
+
+package shopflow.common.v1;
+
+option go_package = "github.com/shopflow/proto/shopflow/common/v1;commonv1";
+
+// Money represents an exact monetary amount in minor units (e.g. cents, kopecks).
+// Invariant INV-FIN-01: Floating-point money types are strictly forbidden.
+message Money {
+  // Amount in signed 64-bit integer minor units (e.g., 1999 represents $19.99).
+  int64 amount = 1;
+  // ISO 4217 three-letter uppercase currency code (e.g. "USD", "EUR").
+  string currency = 2;
+}

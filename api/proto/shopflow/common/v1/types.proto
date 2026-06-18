@@ -1,0 +1,26 @@
+syntax = "proto3";
+
+package shopflow.common.v1;
+
+import "google/protobuf/timestamp.proto";
+
+option go_package = "github.com/shopflow/proto/shopflow/common/v1;commonv1";
+
+message UUID {
+  string value = 1;
+}
+
+message Address {
+  string recipient_name = 1;
+  string street = 2;
+  string city = 3;
+  string state = 4;
+  string postal_code = 5;
+  string country = 6;
+}
+
+message ErrorDetail {
+  string code = 1;
+  string message = 2;
+  string field = 3;
+}

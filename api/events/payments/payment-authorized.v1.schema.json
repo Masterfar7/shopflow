@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/payments/payment-authorized.v1.json",
+  "title": "PaymentAuthorizedPayloadV1",
+  "type": "object",
+  "required": [
+    "payment_id",
+    "order_id",
+    "amount_minor",
+    "currency",
+    "authorization_code",
+    "authorized_at"
+  ],
+  "properties": {
+    "payment_id": { "type": "string", "format": "uuid" },
+    "order_id": { "type": "string", "format": "uuid" },
+    "amount_minor": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "authorization_code": { "type": "string" },
+    "authorized_at": { "type": "string", "format": "date-time" }
+  }
+}

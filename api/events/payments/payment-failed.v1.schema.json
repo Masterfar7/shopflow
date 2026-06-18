@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/payments/payment-failed.v1.json",
+  "title": "PaymentFailedPayloadV1",
+  "type": "object",
+  "required": [
+    "order_id",
+    "payment_id",
+    "error_code",
+    "reason",
+    "retryable",
+    "failed_at"
+  ],
+  "properties": {
+    "order_id": { "type": "string", "format": "uuid" },
+    "payment_id": { "type": "string", "format": "uuid" },
+    "amount_minor": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "error_code": {
+      "type": "string",
+      "enum": [
+        "CARD_DECLINED",
+        "INSUFFICIENT_FUNDS",
+        "FRAUD_DETECTED",
+        "GATEWAY_TIMEOUT",
+        "NETWORK_ERROR"
+      ]
+    },
+    "reason": { "type": "string" },
+    "retryable": { "type": "boolean" },
+    "failed_at": { "type": "string", "format": "date-time" }
+  }
+}

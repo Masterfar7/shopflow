@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/deadletter/poison-pill.v1.json",
+  "title": "PoisonPillPayloadV1",
+  "description": "Emitted to DLQ when a message fails deserialization, schema validation, or exceeds maximum retry attempts",
+  "type": "object",
+  "required": [
+    "original_topic",
+    "original_partition",
+    "original_offset",
+    "consumer_group",
+    "error_type",
+    "error_message",
+    "failed_envelope",
+    "retry_count",
+    "first_failure_time",
+    "dead_letter_time"
+  ],
+  "properties": {
+    "original_topic": { "type": "string" },
+    "original_partition": { "type": "integer" },
+    "original_offset": { "type": "integer" },
+    "original_key": { "type": "string" },
+    "consumer_group": { "type": "string" },
+    "error_type": {
+      "type": "string",
+      "enum": [
+        "DESERIALIZATION_ERROR",
+        "SCHEMA_VALIDATION_ERROR",
+        "UNKNOWN_EVENT_TYPE",
+        "MAX_RETRIES_EXCEEDED"
+      ]
+    },
+    "error_message": { "type": "string" },
+    "stack_trace": { "type": "string" },
+    "failed_envelope": {
+      "type": "object",
+      "description": "Original raw or partial JSON object received from Kafka"
+    },
+    "retry_count": { "type": "integer", "minimum": 0 },
+    "first_failure_time": { "type": "string", "format": "date-time" },
+    "dead_letter_time": { "type": "string", "format": "date-time" }
+  }
+}

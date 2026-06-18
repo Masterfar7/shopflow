@@ -1,0 +1,1380 @@
+openapi: 3.1.0
+info:
+  title: ShopFlow Distributed Order Processing Platform API
+  description: |
+    Production REST contracts for ShopFlow.
+    Features strict int64 minor currency units (zero floats), RFC 7807 Problem Details,
+    optimistic concurrency control via ETag/If-Match, and mandatory idempotency key handling.
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Local development gateway base path
+  - url: http://localhost:8080/
+    description: Root server for health probes and metrics
+
+tags:
+  - name: Catalog
+    description: Product catalog management, SKU definitions, and pricing
+  - name: Cart
+    description: Customer shopping carts with optimistic concurrency
+  - name: Order
+    description: Atomic multi-item orders, snapshotting, and cancellation
+  - name: Inventory
+    description: Stock level queries and warehouse replenishment
+  - name: Payment
+    description: Payment simulator and refunds
+  - name: Observability
+    description: Liveness, readiness, and Prometheus metrics
+
+paths:
+  # ---------------------------------------------------------------------------
+  # CATALOG DOMAIN
+  # ---------------------------------------------------------------------------
+  /products:
+    get:
+      tags: [Catalog]
+      summary: List products with keyset pagination
+      operationId: listProducts
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of items to return (1-100)
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          description: Base64 opaque keyset cursor for pagination
+          required: false
+          schema:
+            type: string
+        - name: category_id
+          in: query
+          description: Filter products by category ID
+          required: false
+          schema:
+            type: string
+        - name: is_active
+          in: query
+          description: Filter by active status
+          required: false
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: Paginated product list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProductListResponse'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+
+    post:
+      tags: [Catalog]
+      summary: Create a new product SKU
+      operationId: createProduct
+      parameters:
+        - $ref: '#/components/parameters/HeaderIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProductRequest'
+      responses:
+        '201':
+          description: Product successfully created
+          headers:
+            Location:
+              description: URI of newly created product
+              schema:
+                type: string
+            ETag:
+              description: Initial entity version
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '409':
+          $ref: '#/components/responses/RFC7807Conflict'
+
+  /products/{id}:
+    get:
+      tags: [Catalog]
+      summary: Get product by ID
+      operationId: getProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Product entity
+          headers:
+            ETag:
+              description: Current entity version
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+    put:
+      tags: [Catalog]
+      summary: Update product metadata (optimistic concurrency)
+      operationId: updateProduct
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/HeaderIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProductRequest'
+      responses:
+        '200':
+          description: Updated product entity
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+        '412':
+          $ref: '#/components/responses/RFC7807PreconditionFailed'
+
+  /products/{id}/price:
+    patch:
+      tags: [Catalog]
+      summary: Update product unit price
+      description: |
+        Updates catalog SKU price. Invariant INV-ORD-01: Updating catalog price
+        NEVER mutates historical prices locked into existing orders.
+      operationId: updateProductPrice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/HeaderIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePriceRequest'
+      responses:
+        '200':
+          description: Product price updated
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Product'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '412':
+          $ref: '#/components/responses/RFC7807PreconditionFailed'
+
+  # ---------------------------------------------------------------------------
+  # CART DOMAIN
+  # ---------------------------------------------------------------------------
+  /carts:
+    post:
+      tags: [Cart]
+      summary: Create or retrieve customer cart
+      operationId: createOrGetCart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCartRequest'
+      responses:
+        '200':
+          description: Cart retrieved or created
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+
+  /carts/{cart_id}:
+    get:
+      tags: [Cart]
+      summary: Get cart by ID
+      operationId: getCart
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Cart details with items and totals
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  /carts/{cart_id}/items:
+    post:
+      tags: [Cart]
+      summary: Add SKU to cart
+      operationId: addCartItem
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/HeaderIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddCartItemRequest'
+      responses:
+        '200':
+          description: Item added; cart totals recalculated
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+        '412':
+          $ref: '#/components/responses/RFC7807PreconditionFailed'
+
+  /carts/{cart_id}/items/{sku}:
+    put:
+      tags: [Cart]
+      summary: Update cart item quantity
+      operationId: updateCartItemQuantity
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/HeaderIfMatch'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCartItemRequest'
+      responses:
+        '200':
+          description: Cart item updated
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+        '412':
+          $ref: '#/components/responses/RFC7807PreconditionFailed'
+
+    delete:
+      tags: [Cart]
+      summary: Remove SKU from cart
+      operationId: removeCartItem
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/HeaderIfMatch'
+      responses:
+        '200':
+          description: Cart item removed
+          headers:
+            ETag:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Cart'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+        '412':
+          $ref: '#/components/responses/RFC7807PreconditionFailed'
+
+  /carts/{cart_id}/clear:
+    delete:
+      tags: [Cart]
+      summary: Clear all items from cart
+      operationId: clearCart
+      parameters:
+        - name: cart_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '204':
+          description: Cart cleared successfully
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  # ---------------------------------------------------------------------------
+  # ORDER DOMAIN
+  # ---------------------------------------------------------------------------
+  /orders:
+    post:
+      tags: [Order]
+      summary: Place order atomically from cart
+      description: |
+        Places an order atomically. Snapshots line item titles and unit prices.
+        Server calculates all line totals and order total.
+        Requires Idempotency-Key. Replaying with identical key returns cached response.
+      operationId: placeOrder
+      parameters:
+        - $ref: '#/components/parameters/HeaderMandatoryIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PlaceOrderRequest'
+      responses:
+        '201':
+          description: Order placed successfully; Saga initiated
+          headers:
+            Location:
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '200':
+          description: Idempotent replay of previously completed order request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '409':
+          $ref: '#/components/responses/RFC7807Conflict'
+        '422':
+          description: Idempotency key payload collision (same key used with differing payload)
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+    get:
+      tags: [Order]
+      summary: List customer orders
+      operationId: listOrders
+      parameters:
+        - name: customer_id
+          in: query
+          required: false
+          schema:
+            type: string
+        - name: status
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/OrderStatus'
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated orders list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrderListResponse'
+
+  /orders/{order_id}:
+    get:
+      tags: [Order]
+      summary: Get order by ID
+      operationId: getOrder
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Order details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Order'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  /orders/{order_id}/cancel:
+    post:
+      tags: [Order]
+      summary: Cancel order in progress
+      operationId: cancelOrder
+      parameters:
+        - name: order_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/HeaderMandatoryIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CancelOrderRequest'
+      responses:
+        '202':
+          description: Order cancellation accepted; triggers saga compensation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CancelOrderResponse'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+        '409':
+          $ref: '#/components/responses/RFC7807Conflict'
+
+  # ---------------------------------------------------------------------------
+  # INVENTORY DOMAIN
+  # ---------------------------------------------------------------------------
+  /inventory/{sku}:
+    get:
+      tags: [Inventory]
+      summary: Get SKU inventory stock level
+      operationId: getInventoryStock
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Current stock levels
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryStock'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  /inventory/{sku}/restock:
+    post:
+      tags: [Inventory]
+      summary: Replenish warehouse stock for a SKU
+      operationId: restockInventory
+      parameters:
+        - name: sku
+          in: path
+          required: true
+          schema:
+            type: string
+        - $ref: '#/components/parameters/HeaderMandatoryIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RestockRequest'
+      responses:
+        '200':
+          description: Stock replenished
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InventoryStock'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  # ---------------------------------------------------------------------------
+  # PAYMENT DOMAIN
+  # ---------------------------------------------------------------------------
+  /payments/simulate:
+    post:
+      tags: [Payment]
+      summary: Simulate payment authorization and capture
+      operationId: simulatePayment
+      parameters:
+        - $ref: '#/components/parameters/HeaderMandatoryIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SimulatePaymentRequest'
+      responses:
+        '200':
+          description: Payment successfully captured
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResult'
+        '402':
+          description: Payment declined or insufficient funds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentResult'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+
+  /payments/{payment_id}/refund:
+    post:
+      tags: [Payment]
+      summary: Refund a previously captured payment
+      operationId: refundPayment
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/HeaderMandatoryIdempotencyKey'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundPaymentRequest'
+      responses:
+        '200':
+          description: Refund processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundResult'
+        '400':
+          $ref: '#/components/responses/RFC7807BadRequest'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  /payments/{payment_id}:
+    get:
+      tags: [Payment]
+      summary: Get payment details by ID
+      operationId: getPayment
+      parameters:
+        - name: payment_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Payment details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentDetails'
+        '404':
+          $ref: '#/components/responses/RFC7807NotFound'
+
+  # ---------------------------------------------------------------------------
+  # OBSERVABILITY & HEALTH
+  # ---------------------------------------------------------------------------
+  /health/live:
+    get:
+      tags: [Observability]
+      summary: Liveness probe
+      operationId: getLiveness
+      responses:
+        '200':
+          description: Service process is alive
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    example: UP
+
+  /health/ready:
+    get:
+      tags: [Observability]
+      summary: Readiness probe with dependency checks
+      description: Validates connectivity to PostgreSQL, Kafka, and Redis.
+      operationId: getReadiness
+      responses:
+        '200':
+          description: All dependencies ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: One or more dependencies unhealthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+
+  /metrics:
+    get:
+      tags: [Observability]
+      summary: Prometheus metrics scrape endpoint
+      operationId: getMetrics
+      responses:
+        '200':
+          description: Prometheus formatted metric text
+          content:
+            text/plain:
+              schema:
+                type: string
+
+# -----------------------------------------------------------------------------
+# COMPONENTS & SCHEMAS
+# -----------------------------------------------------------------------------
+components:
+  parameters:
+    HeaderIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: Unique idempotency UUIDv4 key for safe client retries
+      schema:
+        type: string
+        format: uuid
+    HeaderMandatoryIdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      description: Mandatory idempotency UUIDv4 key
+      schema:
+        type: string
+        format: uuid
+    HeaderIfMatch:
+      name: If-Match
+      in: header
+      required: true
+      description: Entity version for optimistic concurrency (e.g. "3")
+      schema:
+        type: string
+
+  responses:
+    RFC7807BadRequest:
+      description: 400 Bad Request
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    RFC7807NotFound:
+      description: 404 Not Found
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    RFC7807Conflict:
+      description: 409 Conflict
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+    RFC7807PreconditionFailed:
+      description: 412 Precondition Failed (stale version / optimistic lock error)
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+
+  schemas:
+    # -------------------------------------------------------------------------
+    # RFC 7807 PROBLEM DETAILS
+    # -------------------------------------------------------------------------
+    ProblemDetails:
+      type: object
+      required:
+        - type
+        - title
+        - status
+        - detail
+      properties:
+        type:
+          type: string
+          format: uri
+          description: URI reference identifying the error type
+          example: https://shopflow.io/errors/INSUFFICIENT_STOCK
+        title:
+          type: string
+          description: Short, human-readable summary of problem type
+          example: Insufficient Stock
+        status:
+          type: integer
+          description: HTTP status code
+          example: 409
+        detail:
+          type: string
+          description: Human-readable explanation specific to this occurrence
+          example: Available quantity 2 for SKU 'SKU-LAPTOP-01' is less than requested 5
+        instance:
+          type: string
+          format: uri-reference
+          description: URI reference that identifies the specific occurrence
+          example: /api/v1/orders
+        code:
+          type: string
+          description: Application-level machine-readable error code
+          example: INSUFFICIENT_STOCK
+        invalid_params:
+          type: array
+          items:
+            type: object
+            required: [name, reason]
+            properties:
+              name:
+                type: string
+                example: items[0].quantity
+              reason:
+                type: string
+                example: Available quantity is 2
+
+    # -------------------------------------------------------------------------
+    # MONEY TYPE (STRICT ZERO FLOATS)
+    # -------------------------------------------------------------------------
+    Money:
+      type: object
+      description: |
+        Monetary amount strictly in integer minor currency units (e.g. cents).
+        Floating-point values are forbidden across all layers.
+      required:
+        - amount
+        - currency
+      properties:
+        amount:
+          type: integer
+          format: int64
+          description: Signed 64-bit integer minor units (e.g. 1999 = $19.99)
+          minimum: 0
+          example: 1999
+        currency:
+          type: string
+          pattern: '^[A-Z]{3}$'
+          description: ISO 4217 three-letter uppercase currency code
+          example: USD
+
+    # -------------------------------------------------------------------------
+    # CATALOG SCHEMAS
+    # -------------------------------------------------------------------------
+    Product:
+      type: object
+      required:
+        - id
+        - sku
+        - title
+        - description
+        - price
+        - is_active
+        - version
+        - created_at
+        - updated_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+          example: SKU-LAPTOP-01
+        title:
+          type: string
+          example: Pro Laptop 16-inch
+        description:
+          type: string
+          example: High performance workstation
+        category_id:
+          type: string
+          example: cat_electronics
+        price:
+          $ref: '#/components/schemas/Money'
+        is_active:
+          type: boolean
+          example: true
+        version:
+          type: integer
+          format: int64
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    ProductListResponse:
+      type: object
+      required:
+        - items
+        - has_more
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+
+    CreateProductRequest:
+      type: object
+      required:
+        - sku
+        - title
+        - description
+        - price
+      properties:
+        sku:
+          type: string
+          minLength: 3
+          maxLength: 64
+        title:
+          type: string
+          minLength: 1
+          maxLength: 255
+        description:
+          type: string
+        category_id:
+          type: string
+        price:
+          $ref: '#/components/schemas/Money'
+
+    UpdateProductRequest:
+      type: object
+      required:
+        - title
+        - description
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        category_id:
+          type: string
+        is_active:
+          type: boolean
+
+    UpdatePriceRequest:
+      type: object
+      required:
+        - price
+      properties:
+        price:
+          $ref: '#/components/schemas/Money'
+
+    # -------------------------------------------------------------------------
+    # CART SCHEMAS
+    # -------------------------------------------------------------------------
+    CartItem:
+      type: object
+      required:
+        - sku
+        - title
+        - unit_price
+        - quantity
+        - line_total
+      properties:
+        sku:
+          type: string
+        title:
+          type: string
+        unit_price:
+          $ref: '#/components/schemas/Money'
+        quantity:
+          type: integer
+          minimum: 1
+        line_total:
+          $ref: '#/components/schemas/Money'
+
+    Cart:
+      type: object
+      required:
+        - cart_id
+        - customer_id
+        - version
+        - items
+        - total_amount
+        - created_at
+        - updated_at
+      properties:
+        cart_id:
+          type: string
+          format: uuid
+        customer_id:
+          type: string
+        version:
+          type: integer
+          format: int64
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CartItem'
+        total_amount:
+          $ref: '#/components/schemas/Money'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateCartRequest:
+      type: object
+      required:
+        - customer_id
+      properties:
+        customer_id:
+          type: string
+
+    AddCartItemRequest:
+      type: object
+      required:
+        - sku
+        - quantity
+      properties:
+        sku:
+          type: string
+        quantity:
+          type: integer
+          minimum: 1
+
+    UpdateCartItemRequest:
+      type: object
+      required:
+        - quantity
+      properties:
+        quantity:
+          type: integer
+          minimum: 0
+
+    # -------------------------------------------------------------------------
+    # ORDER SCHEMAS
+    # -------------------------------------------------------------------------
+    ShippingAddress:
+      type: object
+      required:
+        - recipient_name
+        - street
+        - city
+        - state
+        - postal_code
+        - country
+      properties:
+        recipient_name:
+          type: string
+        street:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        postal_code:
+          type: string
+        country:
+          type: string
+
+    OrderLineItem:
+      type: object
+      description: Historical snapshot of SKU line item locked at order placement time.
+      required:
+        - id
+        - sku
+        - title_snapshot
+        - unit_price_minor
+        - quantity
+        - line_total_minor
+      properties:
+        id:
+          type: string
+          format: uuid
+        sku:
+          type: string
+        title_snapshot:
+          type: string
+        unit_price_minor:
+          type: integer
+          format: int64
+        quantity:
+          type: integer
+          minimum: 1
+        line_total_minor:
+          type: integer
+          format: int64
+
+    OrderStatus:
+      type: string
+      enum:
+        - PENDING
+        - STOCK_RESERVED
+        - PAID
+        - FULFILLED
+        - CANCELLED
+        - FAILED
+
+    Order:
+      type: object
+      required:
+        - order_id
+        - order_number
+        - customer_id
+        - status
+        - saga_id
+        - currency
+        - total_amount
+        - items
+        - shipping_address
+        - created_at
+        - updated_at
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        order_number:
+          type: string
+          example: SF-2026-00042
+        customer_id:
+          type: string
+        status:
+          $ref: '#/components/schemas/OrderStatus'
+        saga_id:
+          type: string
+          format: uuid
+        currency:
+          type: string
+          example: USD
+        total_amount:
+          $ref: '#/components/schemas/Money'
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/OrderLineItem'
+        shipping_address:
+          $ref: '#/components/schemas/ShippingAddress'
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    PlaceOrderRequest:
+      type: object
+      required:
+        - customer_id
+        - cart_id
+        - shipping_address
+        - payment_simulation_token
+      properties:
+        customer_id:
+          type: string
+        cart_id:
+          type: string
+          format: uuid
+        shipping_address:
+          $ref: '#/components/schemas/ShippingAddress'
+        payment_simulation_token:
+          type: string
+          description: Simulation token e.g. sim_tok_success or sim_tok_decline
+          example: sim_tok_success
+
+    OrderListResponse:
+      type: object
+      required:
+        - items
+        - has_more
+      properties:
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/Order'
+        next_cursor:
+          type: string
+        has_more:
+          type: boolean
+
+    CancelOrderRequest:
+      type: object
+      required:
+        - reason
+      properties:
+        reason:
+          type: string
+          minLength: 3
+
+    CancelOrderResponse:
+      type: object
+      required:
+        - order_id
+        - status
+        - message
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: CANCELLATION_REQUESTED
+        message:
+          type: string
+          example: Order cancellation initiated; compensation saga enqueued
+
+    # -------------------------------------------------------------------------
+    # INVENTORY SCHEMAS
+    # -------------------------------------------------------------------------
+    InventoryStock:
+      type: object
+      required:
+        - sku
+        - on_hand
+        - reserved
+        - available
+        - version
+      properties:
+        sku:
+          type: string
+        on_hand:
+          type: integer
+          minimum: 0
+        reserved:
+          type: integer
+          minimum: 0
+        available:
+          type: integer
+          description: Equal to on_hand - reserved
+        version:
+          type: integer
+          format: int64
+
+    RestockRequest:
+      type: object
+      required:
+        - quantity
+        - reference_id
+      properties:
+        quantity:
+          type: integer
+          minimum: 1
+        reference_id:
+          type: string
+          example: PO-2026-991
+
+    # -------------------------------------------------------------------------
+    # PAYMENT SCHEMAS
+    # -------------------------------------------------------------------------
+    SimulatePaymentRequest:
+      type: object
+      required:
+        - order_id
+        - amount
+        - scenario
+      properties:
+        order_id:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        scenario:
+          type: string
+          enum:
+            - SUCCESS
+            - DECLINE_INSUFFICIENT_FUNDS
+            - DECLINE_FRAUD
+            - TIMEOUT_LATENCY
+            - NETWORK_ERROR
+
+    PaymentResult:
+      type: object
+      required:
+        - payment_id
+        - order_id
+        - status
+      properties:
+        payment_id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [AUTHORIZED, CAPTURED, DECLINED, ERROR]
+        transaction_reference:
+          type: string
+        decline_reason:
+          type: string
+
+    RefundPaymentRequest:
+      type: object
+      required:
+        - amount
+        - reason
+      properties:
+        amount:
+          $ref: '#/components/schemas/Money'
+        reason:
+          type: string
+
+    RefundResult:
+      type: object
+      required:
+        - refund_id
+        - payment_id
+        - status
+      properties:
+        refund_id:
+          type: string
+          format: uuid
+        payment_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          example: REFUNDED
+        refund_reference:
+          type: string
+
+    PaymentDetails:
+      type: object
+      required:
+        - payment_id
+        - order_id
+        - amount
+        - status
+        - created_at
+      properties:
+        payment_id:
+          type: string
+          format: uuid
+        order_id:
+          type: string
+          format: uuid
+        amount:
+          $ref: '#/components/schemas/Money'
+        status:
+          type: string
+        transaction_reference:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    # -------------------------------------------------------------------------
+    # OBSERVABILITY SCHEMAS
+    # -------------------------------------------------------------------------
+    ReadinessResponse:
+      type: object
+      required:
+        - status
+        - checks
+      properties:
+        status:
+          type: string
+          enum: [UP, DOWN]
+        checks:
+          type: object
+          properties:
+            database:
+              type: string
+              example: UP
+            kafka:
+              type: string
+              example: UP
+            redis:
+              type: string
+              example: UP

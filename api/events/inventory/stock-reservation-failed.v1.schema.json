@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/inventory/stock-reservation-failed.v1.json",
+  "title": "StockReservationFailedPayloadV1",
+  "type": "object",
+  "required": [
+    "order_id",
+    "reservation_id",
+    "reason",
+    "failed_skus",
+    "failed_at"
+  ],
+  "properties": {
+    "order_id": { "type": "string", "format": "uuid" },
+    "reservation_id": { "type": "string", "format": "uuid" },
+    "reason": { "type": "string" },
+    "failed_skus": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "failed_at": { "type": "string", "format": "date-time" }
+  }
+}

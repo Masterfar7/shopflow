@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://shopflow.io/schemas/events/orders/order-completed.v1.json",
+  "title": "OrderCompletedPayloadV1",
+  "type": "object",
+  "required": [
+    "order_id",
+    "order_number",
+    "customer_id",
+    "total_amount_minor",
+    "currency",
+    "completed_at"
+  ],
+  "properties": {
+    "order_id": { "type": "string", "format": "uuid" },
+    "order_number": { "type": "string" },
+    "customer_id": { "type": "string" },
+    "total_amount_minor": { "type": "integer", "minimum": 0 },
+    "currency": { "type": "string", "pattern": "^[A-Z]{3}$" },
+    "completed_at": { "type": "string", "format": "date-time" }
+  }
+}

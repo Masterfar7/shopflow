@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package shopflow.payment.v1;
+
+import "google/protobuf/timestamp.proto";
+import "shopflow/common/v1/money.proto";
+
+option go_package = "github.com/shopflow/proto/shopflow/payment/v1;paymentv1";
+
+enum PaymentStatus {
+  PAYMENT_STATUS_UNSPECIFIED = 0;
+  PAYMENT_STATUS_AUTHORIZED = 1;
+  PAYMENT_STATUS_CAPTURED = 2;
+  PAYMENT_STATUS_DECLINED = 3;
+  PAYMENT_STATUS_ERROR = 4;
+  PAYMENT_STATUS_REFUNDED = 5;
+}
+
+message AuthorizeAndCaptureRequest {
+  string payment_id = 1;
+  string order_id = 2;
+  string customer_id = 3;
+  shopflow.common.v1.Money amount = 4;
+  string payment_token = 5;
+  string idempotency_key = 6;
+}
+
+message AuthorizeAndCaptureResponse {
+  PaymentStatus status = 1;
+  string transaction_reference = 2;
+  string decline_reason = 3;
+  google.protobuf.Timestamp timestamp = 4;
+}
+
+message RefundRequest {
+  string refund_id = 1;
+  string payment_id = 2;
+  string order_id = 3;
+  shopflow.common.v1.Money amount = 4;
+  string reason = 5;
+  string idempotency_key = 6;
+}
+
+message RefundResponse {
+  bool success = 1;
+  string refund_reference = 2;
+  google.protobuf.Timestamp timestamp = 3;
+}
+
+message GetPaymentRequest {
+  string payment_id = 1;
+}
+
+message GetPaymentResponse {
+  string payment_id = 1;
+  string order_id = 2;
+  shopflow.common.v1.Money amount = 3;
+  PaymentStatus status = 4;
+  string transaction_reference = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+// PaymentService coordinates payment simulation, capture, and refund compensation.
+service PaymentService {
+  rpc AuthorizeAndCapture(AuthorizeAndCaptureRequest) returns (AuthorizeAndCaptureResponse);
+  rpc Refund(RefundRequest) returns (RefundResponse);
+  rpc GetPayment(GetPaymentRequest) returns (GetPaymentResponse);
+}
