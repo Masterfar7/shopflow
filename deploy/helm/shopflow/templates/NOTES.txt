@@ -1,0 +1,25 @@
+Thank you for installing {{ .Chart.Name }}!
+
+Your release is named {{ .Release.Name }}.
+
+To verify that {{ .Chart.Name }} has started, run:
+
+  1. Check deployment rollout status:
+     kubectl rollout status deployment/{{ include "shopflow.fullname" . }} -n {{ .Release.Namespace }}
+
+  2. List running pods:
+     kubectl get pods -n {{ .Release.Namespace }} -l {{ include "shopflow.selectorLabels" . | replace ": " "=" }}
+
+  3. Forward port to your local machine:
+     export POD_NAME=$(kubectl get pods -n {{ .Release.Namespace }} -l "{{ include "shopflow.selectorLabels" . | replace ": " "=" }}" -o jsonpath="{.items[0].metadata.name}")
+     export CONTAINER_PORT=$(kubectl get pod -n {{ .Release.Namespace }} $POD_NAME -o jsonpath="{.spec.containers[0].ports[0].containerPort}")
+     echo "Forwarding to http://127.0.0.1:8080 ..."
+     kubectl port-forward --namespace {{ .Release.Namespace }} svc/{{ include "shopflow.fullname" . }} 8080:{{ .Values.service.port }}
+
+  4. Perform health probe verification:
+     curl -I http://127.0.0.1:8080/health/live
+     curl -I http://127.0.0.1:8080/health/ready
+     curl http://127.0.0.1:8080/metrics
+
+  5. Inspect application logs:
+     kubectl logs -n {{ .Release.Namespace }} -l {{ include "shopflow.selectorLabels" . | replace ": " "=" }} -f

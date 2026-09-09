@@ -1,0 +1,27 @@
+# Version control and IDE
+.git
+.gitignore
+.idea
+.vscode
+
+# Python / virtual envs
+.venv
+__pycache__
+*.pyc
+
+# Agent metadata and working notes
+.agents
+
+# Compiled binaries and build artifacts
+bin/
+shopflow.exe
+shopflow
+shopflow_linux
+*.out
+
+# Node artifacts (keep web/dist for container SPA serving)
+web/node_modules
+
+# Documentation and temporary files
+tmp/
+*.log

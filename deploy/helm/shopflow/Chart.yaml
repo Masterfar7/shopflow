@@ -1,0 +1,16 @@
+apiVersion: v2
+name: shopflow
+description: Production Helm chart for ShopFlow Distributed Order Processing Platform
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+keywords:
+  - ecommerce
+  - order-processing
+  - distributed-systems
+  - golang
+  - kafka
+  - saga
+maintainers:
+  - name: ShopFlow Core Engineering
+    email: devops@shopflow.io
