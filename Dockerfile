@@ -13,8 +13,7 @@ RUN npm run build
 # ==============================================================================
 # Stage 2: Go Backend Builder
 # ==============================================================================
-ARG GO_VERSION=alpine
-FROM golang:${GO_VERSION} AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /build
 
