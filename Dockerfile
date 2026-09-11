@@ -1,12 +1,21 @@
 # syntax=docker/dockerfile:1
 
 # ==============================================================================
-# Stage 1: Builder
+# Stage 1: Frontend Builder
+# ==============================================================================
+FROM node:20-alpine AS web-builder
+WORKDIR /web
+COPY web/package*.json ./
+RUN npm ci --prefer-offline --no-audit || npm install --no-audit
+COPY web/ ./
+RUN npm run build
+
+# ==============================================================================
+# Stage 2: Go Backend Builder
 # ==============================================================================
 ARG GO_VERSION=alpine
 FROM golang:${GO_VERSION} AS builder
 
-# Set working directory inside build container
 WORKDIR /build
 
 # Cache dependency downloads by copying go.mod and go.sum first
@@ -24,7 +33,7 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
     ./cmd/shopflow
 
 # ==============================================================================
-# Stage 2: Minimal Production Runner (<50MB)
+# Stage 3: Minimal Production Runner (<50MB)
 # ==============================================================================
 FROM alpine:3.20 AS runner
 
@@ -39,8 +48,8 @@ WORKDIR /app
 # Copy compiled Go binary from builder with non-root ownership
 COPY --from=builder --chown=10001:10001 /build/bin/shopflow /app/shopflow
 
-# Copy pre-built frontend distribution assets for SPA fallback serving
-COPY --chown=10001:10001 web/dist /app/web/dist
+# Copy compiled frontend distribution assets from web-builder
+COPY --from=web-builder --chown=10001:10001 /web/dist /app/web/dist
 
 # Run as non-root user (UID/GID 10001)
 USER 10001:10001
