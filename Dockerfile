@@ -3,7 +3,7 @@
 # ==============================================================================
 # Stage 1: Frontend Builder
 # ==============================================================================
-FROM node:20-alpine AS web-builder
+FROM node:22-alpine AS web-builder
 WORKDIR /web
 COPY web/package*.json ./
 RUN npm ci --prefer-offline --no-audit || npm install --no-audit
@@ -13,9 +13,12 @@ RUN npm run build
 # ==============================================================================
 # Stage 2: Go Backend Builder
 # ==============================================================================
-FROM golang:1.24-alpine AS builder
+FROM golang:alpine AS builder
 
 WORKDIR /build
+
+# Allow Go to automatically use toolchain matching go.mod
+ENV GOTOOLCHAIN=auto
 
 # Cache dependency downloads by copying go.mod and go.sum first
 COPY go.mod go.sum ./
