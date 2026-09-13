@@ -104,6 +104,13 @@ func main() {
 	catalogService := catalog.NewServiceWithSearch(catalogRepo, searchClient, logger)
 	catalogHandler := catalog.NewHandlerWithStorageAndSearch(catalogService, blobStorage, searchClient, logger)
 
+	// Ensure search index is populated from database catalog
+	if indexed, err := catalogService.ReindexAll(ctx); err != nil {
+		logger.Warn("initial search indexing failed", "err", err)
+	} else {
+		logger.Info("search index synchronized", "products_indexed", indexed)
+	}
+
 	// Initialize Cart Domain (CatalogReader injected cleanly)
 	cartRepo := cart.NewPostgresRepository(dbPool)
 	cartService := cart.NewService(cartRepo, catalogService, dbPool, logger)
