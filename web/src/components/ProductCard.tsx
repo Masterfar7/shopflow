@@ -4,13 +4,16 @@ import { ProductDocument, ProductImage } from '../types';
 import { formatMoney } from '../utils';
 import { getProductImages } from '../api';
 import { ChevronLeft, ChevronRight, Check, Plus, Minus, ShoppingCart, Image as ImageIcon } from 'lucide-react';
+import { Language, translations } from '../i18n';
 
 interface ProductCardProps {
   product: ProductDocument;
   onAddToCart: (sku: string, quantity: number) => Promise<void>;
+  lang?: Language;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart, lang = 'ru' }) => {
+  const t = translations[lang];
   const [images, setImages] = useState<ProductImage[]>([]);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [quantity, setQuantity] = useState(1);
@@ -120,11 +123,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
           {product.in_stock ? (
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200/80 shadow-xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-              In Stock
+              {t.inStock}
             </span>
           ) : (
             <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-100 text-rose-800 border border-rose-200/80">
-              Out of Stock
+              {t.outOfStock}
             </span>
           )}
         </div>
@@ -138,7 +141,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
             <span className="font-medium text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded">
               {product.category_name || 'General'}
             </span>
-            <span className="font-mono text-[11px] text-slate-400">SKU: {product.sku}</span>
+            <span className="font-mono text-[11px] text-slate-400">{t.sku}: {product.sku}</span>
           </div>
 
           {/* Title */}
@@ -157,7 +160,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
         {/* Price and Cart Actions */}
         <div className="mt-4 pt-3 border-t border-slate-100 flex flex-col gap-3">
           <div className="flex items-baseline justify-between">
-            <span className="text-xs text-slate-500 font-medium">Price</span>
+            <span className="text-xs text-slate-500 font-medium">{t.priceLabel.replace(':', '')}</span>
             <span className="text-lg font-bold text-slate-900 tracking-tight">
               {formatMoney(product.price_minor, product.currency)}
             </span>
@@ -204,14 +207,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onAddToCart }
               {added ? (
                 <>
                   <Check className="w-3.5 h-3.5" />
-                  <span>Added!</span>
+                  <span>{t.added}</span>
                 </>
               ) : adding ? (
-                <span>Adding...</span>
+                <span>{t.adding}</span>
               ) : (
                 <>
                   <ShoppingCart className="w-3.5 h-3.5" />
-                  <span>Add to Cart</span>
+                  <span>{t.addToCart}</span>
                 </>
               )}
             </button>

@@ -6,7 +6,7 @@ services:
     container_name: shopflow-postgres
     restart: unless-stopped
     ports:
-      - "5432:5432"
+      - "5434:5432"
     environment:
       POSTGRES_DB: shopflow
       POSTGRES_USER: shopflow
@@ -85,7 +85,7 @@ services:
       - shopflow-net
 
   minio:
-    image: minio/minio:latest
+    image: quay.io/minio/minio:latest
     container_name: shopflow-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"

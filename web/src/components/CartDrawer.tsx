@@ -4,6 +4,7 @@ import { X, Trash2, Plus, Minus, ShoppingBag, ArrowRight, AlertTriangle, Refresh
 import { Cart } from '../types';
 import { formatMoney } from '../utils';
 import { updateCartItemQuantity, removeCartItem, clearCart } from '../api';
+import { Language, translations } from '../i18n';
 
 interface CartDrawerProps {
   isOpen: boolean;
@@ -13,6 +14,7 @@ interface CartDrawerProps {
   onCartUpdated: (updatedCart: Cart) => void;
   onRefreshCart: () => Promise<void>;
   onProceedToCheckout: () => void;
+  lang?: Language;
 }
 
 export const CartDrawer: React.FC<CartDrawerProps> = ({
@@ -23,7 +25,9 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
   onCartUpdated,
   onRefreshCart,
   onProceedToCheckout,
+  lang = 'ru',
 }) => {
+  const t = translations[lang];
   const [updatingSku, setUpdatingSku] = useState<string | null>(null);
   const [errorNotice, setErrorNotice] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
@@ -112,7 +116,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
           <div className="p-4 sm:p-6 border-b border-slate-200 flex items-center justify-between">
             <div className="flex items-center gap-2">
               <ShoppingBag className="w-5 h-5 text-indigo-600" />
-              <h2 className="text-lg font-bold text-slate-900">Your Shopping Cart</h2>
+              <h2 className="text-lg font-bold text-slate-900">{t.cartTitle}</h2>
               {cart && (
                 <span
                   className="text-[11px] font-mono bg-slate-100 text-slate-600 px-2 py-0.5 rounded-full border border-slate-200"
@@ -155,10 +159,16 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                 <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-3">
                   <ShoppingBag className="w-8 h-8" />
                 </div>
-                <h3 className="text-base font-semibold text-slate-800">Your cart is empty</h3>
+                <h3 className="text-base font-semibold text-slate-800">{t.emptyCartTitle}</h3>
                 <p className="text-xs text-slate-500 mt-1 max-w-xs">
-                  Browse the catalog and add items to your shopping cart to begin checkout.
+                  {t.emptyCartDesc}
                 </p>
+                <button
+                  onClick={onClose}
+                  className="mt-4 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-xl text-xs font-semibold transition"
+                >
+                  {t.continueShopping}
+                </button>
               </div>
             ) : (
               items.map((item) => {
@@ -173,13 +183,13 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                         <h4 className="font-semibold text-sm text-slate-900 leading-snug">
                           {item.title || item.sku}
                         </h4>
-                        <span className="font-mono text-[11px] text-slate-400">SKU: {item.sku}</span>
+                        <span className="font-mono text-[11px] text-slate-400">{t.sku}: {item.sku}</span>
                       </div>
                       <button
                         onClick={() => handleRemove(item.sku)}
                         disabled={isUpdating}
                         className="p-1 text-slate-400 hover:text-rose-600 transition disabled:opacity-30"
-                        title="Remove item"
+                        title={lang === 'ru' ? 'Удалить' : 'Remove item'}
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -231,15 +241,15 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
               {/* Server-calculated totals in minor units */}
               <div className="space-y-1.5 text-sm">
                 <div className="flex items-center justify-between text-slate-500 text-xs">
-                  <span>Subtotal</span>
+                  <span>{t.subtotal}</span>
                   <span>{formatMoney(cart.total_amount.amount, cart.currency)}</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-500 text-xs">
-                  <span>Estimated Tax / Shipping</span>
-                  <span className="text-emerald-600 font-medium">Included</span>
+                  <span>{t.shipping}</span>
+                  <span className="text-emerald-600 font-medium">{t.free}</span>
                 </div>
                 <div className="flex items-center justify-between text-slate-900 font-bold text-base pt-2 border-t border-slate-200">
-                  <span>Order Total</span>
+                  <span>{t.total}</span>
                   <span className="text-lg">
                     {formatMoney(cart.total_amount.amount, cart.currency)}
                   </span>
@@ -252,7 +262,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   onClick={onProceedToCheckout}
                   className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold rounded-xl shadow-md shadow-indigo-600/25 flex items-center justify-center gap-2 transition active:scale-[0.98]"
                 >
-                  <span>Proceed to Checkout</span>
+                  <span>{t.checkoutBtn}</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
@@ -261,7 +271,7 @@ export const CartDrawer: React.FC<CartDrawerProps> = ({
                   disabled={clearing}
                   className="w-full py-2 text-xs font-semibold text-slate-500 hover:text-rose-600 transition disabled:opacity-40"
                 >
-                  {clearing ? 'Clearing cart...' : 'Clear Cart'}
+                  {clearing ? (lang === 'ru' ? 'Очистка...' : 'Clearing cart...') : t.clearCart}
                 </button>
               </div>
             </div>

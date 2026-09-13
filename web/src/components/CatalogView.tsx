@@ -5,12 +5,15 @@ import { Category, SearchResult } from '../types';
 import { listCategories, searchProducts } from '../api';
 import { ProductCard } from './ProductCard';
 import { parseDollarsToMinor } from '../utils';
+import { Language, translations } from '../i18n';
 
 interface CatalogViewProps {
   onAddToCart: (sku: string, quantity: number) => Promise<void>;
+  lang?: Language;
 }
 
-export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
+export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart, lang = 'ru' }) => {
+  const t = translations[lang];
   // Filters state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('');
@@ -110,7 +113,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
                 setSearchQuery(e.target.value);
                 setPage(1);
               }}
-              placeholder="Search products by title, SKU, or description..."
+              placeholder={t.searchPlaceholder}
               className="w-full pl-11 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm placeholder-slate-400 focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 outline-none transition"
             />
           </div>
@@ -120,7 +123,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
             className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-semibold shadow-sm shadow-indigo-600/20 transition active:scale-95 flex items-center justify-center gap-2"
           >
             <Search className="w-4 h-4" />
-            Search
+            {t.searchBtn}
           </button>
         </form>
 
@@ -129,7 +132,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
           <div className="flex flex-wrap items-center gap-4 text-xs">
             {/* Category Select */}
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-600">Category:</span>
+              <span className="font-semibold text-slate-600">{t.categoryLabel}</span>
               <select
                 value={selectedCategory}
                 onChange={(e) => {
@@ -138,7 +141,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
                 }}
                 className="bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs text-slate-700 focus:outline-none focus:border-indigo-500 font-medium"
               >
-                <option value="">All Categories</option>
+                <option value="">{t.allCategories}</option>
                 {categories.map((c) => (
                   <option key={c.id} value={c.id}>
                     {c.name}
@@ -149,12 +152,12 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
 
             {/* Price Range Filter */}
             <div className="flex items-center gap-1.5">
-              <span className="font-semibold text-slate-600">Price ($):</span>
+              <span className="font-semibold text-slate-600">{t.priceLabel}</span>
               <input
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="Min"
+                placeholder={t.minPrice}
                 value={minPriceInput}
                 onChange={(e) => {
                   setMinPriceInput(e.target.value);
@@ -167,7 +170,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
                 type="number"
                 step="0.01"
                 min="0"
-                placeholder="Max"
+                placeholder={t.maxPrice}
                 value={maxPriceInput}
                 onChange={(e) => {
                   setMaxPriceInput(e.target.value);
@@ -193,7 +196,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
                 }}
                 className="w-4 h-4 rounded text-indigo-600 border-slate-300 focus:ring-indigo-500 cursor-pointer"
               />
-              In stock only
+              {t.inStockOnly || (lang === 'ru' ? 'Только в наличии' : 'In stock only')}
             </label>
           </div>
 
@@ -204,7 +207,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
             className="flex items-center gap-1 text-xs text-slate-500 hover:text-indigo-600 font-medium transition"
           >
             <RotateCcw className="w-3.5 h-3.5" />
-            Reset all
+            {t.resetAll}
           </button>
         </div>
 
@@ -257,17 +260,17 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
       {/* Results Header */}
       <div className="flex items-center justify-between mb-6">
         <h2 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-          Product Catalog
+          {t.catalogTitle}
           {searchResult && (
             <span className="text-xs font-normal text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">
-              {searchResult.total_hits} {searchResult.total_hits === 1 ? 'item' : 'items'} found
+              {searchResult.total_hits} {searchResult.total_hits === 1 ? t.itemOne : t.itemsFound}
             </span>
           )}
         </h2>
 
         {totalPages > 1 && (
           <div className="text-xs text-slate-500 font-medium">
-            Page {page} of {totalPages}
+            {t.pageOf(page, totalPages)}
           </div>
         )}
       </div>
@@ -298,22 +301,22 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
           <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
             <PackageSearch className="w-8 h-8" />
           </div>
-          <h3 className="text-base font-bold text-slate-800">No products found</h3>
+          <h3 className="text-base font-bold text-slate-800">{t.noProductsTitle}</h3>
           <p className="text-sm text-slate-500 mt-1 max-w-sm">
-            We couldn&apos;t find any products matching your current search or filter criteria.
+            {t.noProductsDesc}
           </p>
           <button
             onClick={handleResetFilters}
             className="mt-5 px-4 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs rounded-xl border border-indigo-200 transition"
           >
-            Clear Filters
+            {t.clearFilters}
           </button>
         </div>
       ) : (
         /* Products Grid */
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
           {products.map((p) => (
-            <ProductCard key={p.id || p.sku} product={p} onAddToCart={onAddToCart} />
+            <ProductCard key={p.id || p.sku} product={p} onAddToCart={onAddToCart} lang={lang} />
           ))}
         </div>
       )}
@@ -327,7 +330,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
             className="flex items-center gap-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
           >
             <ChevronLeft className="w-4 h-4" />
-            Previous
+            {lang === 'ru' ? 'Назад' : 'Previous'}
           </button>
           <span className="text-xs font-semibold text-slate-600 px-3">
             {page} / {totalPages}
@@ -337,7 +340,7 @@ export const CatalogView: React.FC<CatalogViewProps> = ({ onAddToCart }) => {
             disabled={page >= totalPages || loading}
             className="flex items-center gap-1 px-3.5 py-2 rounded-xl border border-slate-200 bg-white text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed shadow-xs"
           >
-            Next
+            {lang === 'ru' ? 'Вперед' : 'Next'}
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>

@@ -77,6 +77,11 @@ func main() {
 	defer dbPool.Close()
 	logger.Info("postgres pool connected successfully")
 
+	// Automatically seed initial demo products if catalog is empty
+	if err := seedInitialData(ctx, dbPool, logger); err != nil {
+		logger.Warn("failed to seed initial catalog data", "err", err)
+	}
+
 	// Initialize Telemetry
 	metrics := telemetry.DefaultMetrics()
 

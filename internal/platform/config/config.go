@@ -48,7 +48,11 @@ func Load() Config {
 
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
-		dbURL = "postgres://shopflow:shopflow_secret@localhost:5432/shopflow?sslmode=disable"
+		pgPort := os.Getenv("POSTGRES_PORT")
+		if pgPort == "" {
+			pgPort = "5434"
+		}
+		dbURL = "postgres://shopflow:shopflow_secret@localhost:" + pgPort + "/shopflow?sslmode=disable"
 	}
 
 	kafkaBrokersEnv := os.Getenv("KAFKA_BROKERS")

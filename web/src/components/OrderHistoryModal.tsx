@@ -4,12 +4,14 @@ import { X, Clock, ChevronRight, AlertCircle, RefreshCw } from 'lucide-react';
 import { Order } from '../types';
 import { formatMoney } from '../utils';
 import { listOrders } from '../api';
+import { Language, translations } from '../i18n';
 
 interface OrderHistoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   customerId: string;
   onSelectOrder: (orderId: string) => void;
+  lang?: Language;
 }
 
 export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
@@ -17,7 +19,9 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
   onClose,
   customerId,
   onSelectOrder,
+  lang = 'ru',
 }) => {
+  const t = translations[lang];
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +59,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
         <div className="flex items-center justify-between pb-4 border-b border-slate-100">
           <div className="flex items-center gap-2">
             <Clock className="w-5 h-5 text-indigo-600" />
-            <h3 className="font-bold text-lg text-slate-900">Order History</h3>
+            <h3 className="font-bold text-lg text-slate-900">{t.historyTitle}</h3>
           </div>
           <div className="flex items-center gap-2">
             <button
@@ -77,7 +81,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
         {/* Content */}
         <div className="flex-1 overflow-y-auto py-4 space-y-3">
           {loading ? (
-            <div className="py-8 text-center text-xs text-slate-500">Loading orders...</div>
+            <div className="py-8 text-center text-xs text-slate-500">{lang === 'ru' ? 'Загрузка...' : 'Loading orders...'}</div>
           ) : error ? (
             <div className="p-3 bg-rose-50 rounded-xl text-rose-800 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -85,7 +89,8 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({
             </div>
           ) : orders.length === 0 ? (
             <div className="py-12 text-center text-slate-400 text-xs">
-              No orders found for this customer.
+              <p className="font-semibold text-slate-700 mb-1">{t.noOrdersTitle}</p>
+              <p>{t.noOrdersDesc}</p>
             </div>
           ) : (
             orders.map((ord) => (

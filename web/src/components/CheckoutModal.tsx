@@ -4,6 +4,7 @@ import { X, ShieldCheck, CreditCard, RefreshCw, AlertCircle, Loader2 } from 'luc
 import { Cart, Order } from '../types';
 import { formatMoney, generateUUID } from '../utils';
 import { createOrder } from '../api';
+import { Language, translations } from '../i18n';
 
 interface CheckoutModalProps {
   isOpen: boolean;
@@ -11,6 +12,7 @@ interface CheckoutModalProps {
   cart: Cart | null;
   customerId: string;
   onOrderPlaced: (order: Order) => void;
+  lang?: Language;
 }
 
 export const CheckoutModal: React.FC<CheckoutModalProps> = ({
@@ -19,7 +21,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
   cart,
   customerId,
   onOrderPlaced,
+  lang = 'ru',
 }) => {
+  const t = translations[lang];
   const [idempotencyKey, setIdempotencyKey] = useState(generateUUID());
   const [currency, setCurrency] = useState('USD');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -85,8 +89,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
               <CreditCard className="w-5 h-5" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-900">Checkout & Order</h3>
-              <p className="text-xs text-slate-500">Atomic reservation & Saga orchestration</p>
+              <h3 className="text-lg font-bold text-slate-900">{t.checkoutTitle}</h3>
+              <p className="text-xs text-slate-500">{t.checkoutSubtitle}</p>
             </div>
           </div>
           <button
@@ -108,7 +112,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
         {/* Order Items Preview */}
         <div>
-          <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Order Items</div>
+          <div className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">{t.orderSummary}</div>
           <div className="max-h-48 overflow-y-auto divide-y divide-slate-100 border border-slate-200/80 rounded-xl bg-slate-50/50 p-2">
             {cart.items.map((item) => (
               <div key={item.sku} className="py-2 px-2 flex items-center justify-between text-xs">
@@ -131,12 +135,12 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
           {/* Customer ID & Idempotency Key Info */}
           <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200/70 space-y-2 text-xs">
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">Customer ID:</span>
+              <span className="text-slate-500 font-medium">{t.customer} ID:</span>
               <span className="font-mono text-slate-700 font-semibold">{customerId.slice(0, 8)}...</span>
             </div>
 
             <div className="flex items-center justify-between">
-              <span className="text-slate-500 font-medium">Currency:</span>
+              <span className="text-slate-500 font-medium">{lang === 'ru' ? 'Валюта' : 'Currency'}:</span>
               <span className="font-bold text-slate-900">{currency}</span>
             </div>
 
@@ -164,7 +168,7 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
           {/* Grand Total */}
           <div className="flex items-center justify-between text-base font-bold text-slate-900 px-1">
-            <span>Total Payable:</span>
+            <span>{t.total}:</span>
             <span className="text-xl text-indigo-700">
               {formatMoney(cart.total_amount.amount, cart.currency)}
             </span>
@@ -179,10 +183,10 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
             {isSubmitting ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>Submitting Order Saga...</span>
+                <span>{t.processingOrder}</span>
               </>
             ) : (
-              <span>Confirm & Place Order</span>
+              <span>{t.placeOrderBtn}</span>
             )}
           </button>
         </form>

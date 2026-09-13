@@ -14,18 +14,22 @@ import {
 import { Order, OrderStatusType } from '../types';
 import { formatMoney, generateUUID } from '../utils';
 import { getOrder, cancelOrder } from '../api';
+import { Language, translations } from '../i18n';
 
 interface OrderStatusViewProps {
   orderId: string;
   customerId: string;
   onBackToCatalog: () => void;
+  lang?: Language;
 }
 
 export const OrderStatusView: React.FC<OrderStatusViewProps> = ({
   orderId,
   customerId,
   onBackToCatalog,
+  lang = 'ru',
 }) => {
+  const t = translations[lang];
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -115,7 +119,7 @@ export const OrderStatusView: React.FC<OrderStatusViewProps> = ({
         className="flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-indigo-600 transition mb-6"
       >
         <ArrowLeft className="w-4 h-4" />
-        Back to Catalog
+        {t.backToCatalog}
       </button>
 
       {/* Main Status Card */}
@@ -125,9 +129,9 @@ export const OrderStatusView: React.FC<OrderStatusViewProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <Package className="w-6 h-6 text-indigo-600" />
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Order Status</h1>
+              <h1 className="text-2xl font-black text-slate-900 tracking-tight">{t.orderStatusTitle}</h1>
             </div>
-            <div className="text-xs text-slate-500 mt-1 font-mono">ID: {orderId}</div>
+            <div className="text-xs text-slate-500 mt-1 font-mono">{t.orderIdLabel}: {orderId}</div>
           </div>
 
           <div className="flex items-center gap-2">

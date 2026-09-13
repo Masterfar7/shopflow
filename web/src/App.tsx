@@ -9,10 +9,17 @@ import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { Cart, Order } from './types';
 import { getCustomerId, setCustomerId } from './utils';
 import { getOrInitActiveCart, addCartItem } from './api';
+import { getLanguage, setLanguage, Language } from './i18n';
 
 export const App: React.FC = () => {
+  const [lang, setLangState] = useState<Language>(getLanguage());
   const [customerId, setLocalCustomerId] = useState<string>(getCustomerId());
   const [cart, setCart] = useState<Cart | null>(null);
+
+  const handleLanguageChange = (newLang: Language) => {
+    setLanguage(newLang);
+    setLangState(newLang);
+  };
 
   // Routing state
   const [activeView, setActiveView] = useState<'catalog' | 'order'>('catalog');
@@ -132,20 +139,23 @@ export const App: React.FC = () => {
         onCustomerChange={handleCustomerChange}
         onOpenCart={() => setCartOpen(true)}
         onOpenOrderHistory={() => setOrderHistoryOpen(true)}
+        lang={lang}
+        onLanguageChange={handleLanguageChange}
       />
 
       {/* Main Content Body */}
       <main className="flex-1">
         {activeView === 'catalog' ? (
-          <CatalogView onAddToCart={handleAddToCart} />
+          <CatalogView onAddToCart={handleAddToCart} lang={lang} />
         ) : activeOrderId ? (
           <OrderStatusView
             orderId={activeOrderId}
             customerId={customerId}
             onBackToCatalog={navigateToCatalog}
+            lang={lang}
           />
         ) : (
-          <CatalogView onAddToCart={handleAddToCart} />
+          <CatalogView onAddToCart={handleAddToCart} lang={lang} />
         )}
       </main>
 
@@ -161,6 +171,7 @@ export const App: React.FC = () => {
           setCartOpen(false);
           setCheckoutOpen(true);
         }}
+        lang={lang}
       />
 
       {/* Checkout Modal */}
@@ -170,6 +181,7 @@ export const App: React.FC = () => {
         cart={cart}
         customerId={customerId}
         onOrderPlaced={handleOrderPlaced}
+        lang={lang}
       />
 
       {/* Order History Modal */}
@@ -178,12 +190,13 @@ export const App: React.FC = () => {
         onClose={() => setOrderHistoryOpen(false)}
         customerId={customerId}
         onSelectOrder={(id) => navigateToOrder(id)}
+        lang={lang}
       />
 
       {/* Footer */}
       <footer className="bg-white border-t border-slate-200 py-6 text-center text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-2">
-          <span>ShopFlow &copy; 2026. High-Performance Distributed Order Platform.</span>
+          <span>ShopFlow &copy; 2026. {lang === 'ru' ? 'Высоконагруженная распределенная платформа заказов.' : 'High-Performance Distributed Order Platform.'}</span>
           <span className="font-mono text-slate-400">Strict int64 Minor Money &bull; Zero Overselling</span>
         </div>
       </footer>
